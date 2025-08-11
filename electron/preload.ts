@@ -236,7 +236,10 @@ const electronAPI = {
       ipcRenderer.removeListener("delete-last-screenshot", subscription)
     }
   },
-  deleteLastScreenshot: () => ipcRenderer.invoke("delete-last-screenshot")
+  deleteLastScreenshot: () => ipcRenderer.invoke("delete-last-screenshot"),
+  getWindowPosition: () => ipcRenderer.invoke("get-window-position"),
+  setWindowPosition: (x: number, y: number) => 
+    ipcRenderer.invoke("set-window-position", x, y)
 }
 
 // Before exposing the API

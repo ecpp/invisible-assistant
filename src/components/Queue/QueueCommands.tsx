@@ -233,6 +233,21 @@ const QueueCommands: React.FC<QueueCommandsProps> = ({
                   <div className="space-y-4">
                     <h3 className="font-medium truncate">Keyboard Shortcuts</h3>
                     <div className="space-y-3">
+                      {/* Move Window Command */}
+                      <div className="rounded px-2 py-1.5 bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate text-blue-400">Move Window</span>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <span className="bg-blue-500/20 px-1.5 py-0.5 rounded text-[10px] leading-none text-blue-300">
+                              {COMMAND_KEY} + Drag
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] leading-relaxed text-blue-300/70 mt-1">
+                          Hold {COMMAND_KEY} and drag anywhere to move window.
+                        </p>
+                      </div>
+
                       {/* Toggle Command */}
                       <div
                         className="cursor-pointer rounded px-2 py-1.5 hover:bg-white/10 transition-colors"

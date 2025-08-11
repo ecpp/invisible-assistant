@@ -65,7 +65,8 @@ All it takes is modest JavaScript/TypeScript knowledge and understanding of the 
 The application uses unidentifiable global keyboard shortcuts that won't be detected by browsers or other applications:
 
 - Toggle Window Visibility: [Control or Cmd + B]
-- Move Window: [Control or Cmd + Arrow keys]
+- Move Window with Keyboard: [Control or Cmd + Arrow keys]
+- **Move Window with Mouse: Hold [Control or Cmd] and drag anywhere on the window**
 - Take Screenshot: [Control or Cmd + H]
 - Delete Last Screenshot: [Control or Cmd + L]
 - Process Screenshots: [Control or Cmd + Enter]

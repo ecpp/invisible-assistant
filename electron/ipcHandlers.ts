@@ -348,4 +348,29 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       return { success: false, error: "Failed to delete last screenshot" }
     }
   })
+
+  // Window position handlers for dragging
+  ipcMain.handle("get-window-position", () => {
+    const mainWindow = deps.getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { x: 0, y: 0 }
+    }
+    const [x, y] = mainWindow.getPosition()
+    return { x, y }
+  })
+
+  ipcMain.handle("set-window-position", (_event, x: number, y: number) => {
+    const mainWindow = deps.getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { success: false, error: "Main window not available" }
+    }
+    
+    try {
+      mainWindow.setPosition(Math.round(x), Math.round(y))
+      return { success: true }
+    } catch (error) {
+      console.error("Error setting window position:", error)
+      return { success: false, error: "Failed to set window position" }
+    }
+  })
 }
