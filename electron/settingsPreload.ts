@@ -12,6 +12,14 @@ const settingsAPI = {
   // API key validation
   validateApiKey: (apiKey: string) => ipcRenderer.invoke("validate-api-key", apiKey),
   
+  // Monitor management
+  getMonitors: () => ipcRenderer.invoke("get-monitors"),
+  getMonitorSettings: () => ipcRenderer.invoke("get-monitor-settings"),
+  setMonitorSettings: (settings: { 
+    screenshotMonitorId?: string; 
+    displayMonitorId?: string 
+  }) => ipcRenderer.invoke("set-monitor-settings", settings),
+  
   // Window control
   closeWindow: () => ipcRenderer.invoke("close-settings-window")
 }

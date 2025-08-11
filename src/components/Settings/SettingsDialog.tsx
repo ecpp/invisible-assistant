@@ -10,6 +10,7 @@ import {
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useToast } from "../../contexts/toast";
+import { MonitorSelector } from "./MonitorSelector";
 
 type APIProvider = "gemini";
 
@@ -105,6 +106,25 @@ interface SettingsDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+interface MonitorInfo {
+  id: string;
+  name: string;
+  isPrimary: boolean;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  workArea: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  scaleFactor: number;
+}
+
 export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDialogProps) {
   const [open, setOpen] = useState(externalOpen || false);
   const [apiKey, setApiKey] = useState("");
@@ -113,6 +133,9 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
   const [solutionModel, setSolutionModel] = useState("gpt-4o");
   const [debuggingModel, setDebuggingModel] = useState("gpt-4o");
   const [isLoading, setIsLoading] = useState(false);
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [screenshotMonitorId, setScreenshotMonitorId] = useState<string | undefined>();
+  const [displayMonitorId, setDisplayMonitorId] = useState<string | undefined>();
   const { showToast } = useToast();
 
   // Sync with external open state
@@ -131,7 +154,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
     }
   };
   
-  // Load current config on dialog open
+  // Load current config and monitors on dialog open
   useEffect(() => {
     if (open) {
       setIsLoading(true);
@@ -143,7 +166,8 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         debuggingModel?: string;
       }
 
-      window.electronAPI
+      // Load configuration
+      const loadConfig = window.electronAPI
         .getConfig()
         .then((config: Config) => {
           setApiKey(config.apiKey || "");
@@ -151,9 +175,36 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
           setExtractionModel(config.extractionModel || "gemini-2.5-flash");
           setSolutionModel(config.solutionModel || "gemini-2.5-flash");
           setDebuggingModel(config.debuggingModel || "gemini-2.5-flash");
-        })
+        });
+
+      // Load monitors
+      const loadMonitors = window.electronAPI
+        .getMonitors()
+        .then((result: { success: boolean; monitors?: MonitorInfo[]; error?: string }) => {
+          console.log("Loading monitors result:", result);
+          if (result.success && result.monitors) {
+            setMonitors(result.monitors);
+            console.log("Monitors set in state:", result.monitors);
+          } else {
+            console.error("Failed to load monitors:", result.error);
+          }
+        });
+
+      // Load monitor settings
+      const loadMonitorSettings = window.electronAPI
+        .getMonitorSettings()
+        .then((result: { success: boolean; screenshotMonitorId?: string; displayMonitorId?: string; error?: string }) => {
+          if (result.success) {
+            setScreenshotMonitorId(result.screenshotMonitorId);
+            setDisplayMonitorId(result.displayMonitorId);
+          } else {
+            console.error("Failed to load monitor settings:", result.error);
+          }
+        });
+
+      Promise.all([loadConfig, loadMonitors, loadMonitorSettings])
         .catch((error: unknown) => {
-          console.error("Failed to load config:", error);
+          console.error("Failed to load settings:", error);
           showToast("Error", "Failed to load settings", "error");
         })
         .finally(() => {
@@ -161,12 +212,37 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         });
     }
   }, [open, showToast]);
+  
+  // Listen for monitor changes
+  useEffect(() => {
+    const handleMonitorsChanged = (_event: any, updatedMonitors: MonitorInfo[]) => {
+      setMonitors(updatedMonitors);
+      
+      // Check if selected monitors are still valid
+      if (screenshotMonitorId && !updatedMonitors.find(m => m.id === screenshotMonitorId)) {
+        setScreenshotMonitorId(undefined);
+        showToast("Monitor Unplugged", "Screenshot monitor was disconnected. Reverting to auto-detect.", "warning");
+      }
+      
+      if (displayMonitorId && !updatedMonitors.find(m => m.id === displayMonitorId)) {
+        setDisplayMonitorId(undefined);
+        showToast("Monitor Unplugged", "Display monitor was disconnected. Reverting to auto-detect.", "warning");
+      }
+    };
+
+    window.electronAPI.on('monitors-changed', handleMonitorsChanged);
+    
+    return () => {
+      window.electronAPI.off('monitors-changed', handleMonitorsChanged);
+    };
+  }, [screenshotMonitorId, displayMonitorId, showToast]);
 
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const result = await window.electronAPI.updateConfig({
+      // Save main configuration
+      const configResult = await window.electronAPI.updateConfig({
         apiKey,
         apiProvider,
         extractionModel,
@@ -174,7 +250,13 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         debuggingModel,
       });
       
-      if (result) {
+      // Save monitor settings
+      const monitorResult = await window.electronAPI.setMonitorSettings({
+        screenshotMonitorId,
+        displayMonitorId,
+      });
+      
+      if (configResult && monitorResult.success) {
         showToast("Success", "Settings saved successfully", "success");
         handleOpenChange(false);
         
@@ -182,6 +264,8 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         setTimeout(() => {
           window.location.reload();
         }, 1500);
+      } else {
+        throw new Error("Failed to save settings");
       }
     } catch (error) {
       console.error("Failed to save settings:", error);
@@ -211,10 +295,10 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 'min(450px, 90vw)',
+          width: 'min(500px, 90vw)',
           height: 'auto',
           minHeight: '400px',
-          maxHeight: '90vh',
+          maxHeight: '85vh',
           overflowY: 'auto',
           zIndex: 9999,
           margin: 0,
@@ -277,6 +361,30 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
               </p>
               <p className="text-xs text-white/60">3. Create a new API key and paste it here</p>
             </div>
+          </div>
+          
+          {/* Monitor Selection Section */}
+          <div className="space-y-4 mt-4">
+            <label className="text-sm font-medium text-white">Multi-Monitor Settings</label>
+            <p className="text-xs text-white/60 -mt-3 mb-2">
+              Configure which monitors to use for different functions
+            </p>
+            
+            <MonitorSelector
+              label="Screenshot Monitor"
+              description="Select which monitor to capture when taking screenshots"
+              value={screenshotMonitorId}
+              onChange={setScreenshotMonitorId}
+              monitors={monitors}
+            />
+            
+            <MonitorSelector
+              label="Display Monitor"
+              description="Select which monitor to display the application window on"
+              value={displayMonitorId}
+              onChange={setDisplayMonitorId}
+              monitors={monitors}
+            />
           </div>
           
           <div className="space-y-2 mt-4">

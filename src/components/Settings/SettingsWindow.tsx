@@ -6,12 +6,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Slider } from "../ui/slider"
-import { AlertCircle, Check, X, Settings, Key, Eye, Keyboard } from "lucide-react"
+import { AlertCircle, Check, X, Settings, Key, Eye, Keyboard, Monitor } from "lucide-react"
+import { MonitorSelector } from "./MonitorSelector"
 
 interface Config {
   apiKey?: string
   language?: string
   opacity?: number
+}
+
+interface MonitorInfo {
+  id: string;
+  name: string;
+  isPrimary: boolean;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  workArea: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  scaleFactor: number;
 }
 
 export function SettingsWindow() {
@@ -22,6 +42,9 @@ export function SettingsWindow() {
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<{ valid: boolean; error?: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([])
+  const [screenshotMonitorId, setScreenshotMonitorId] = useState<string | undefined>()
+  const [displayMonitorId, setDisplayMonitorId] = useState<string | undefined>()
 
   // Load current configuration
   useEffect(() => {
@@ -33,6 +56,21 @@ export function SettingsWindow() {
           setApiKey(currentConfig.apiKey || "")
           setLanguage(currentConfig.language || "python")
           setOpacity(currentConfig.opacity ?? 1)
+        }
+        
+        // Load monitors
+        const monitorsResult = await window.settingsAPI.getMonitors()
+        console.log("Loading monitors in SettingsWindow:", monitorsResult)
+        if (monitorsResult.success && monitorsResult.monitors) {
+          setMonitors(monitorsResult.monitors)
+        }
+        
+        // Load monitor settings
+        const monitorSettings = await window.settingsAPI.getMonitorSettings()
+        console.log("Loading monitor settings:", monitorSettings)
+        if (monitorSettings.success) {
+          setScreenshotMonitorId(monitorSettings.screenshotMonitorId)
+          setDisplayMonitorId(monitorSettings.displayMonitorId)
         }
       } catch (error) {
         console.error("Failed to load config:", error)
@@ -69,6 +107,12 @@ export function SettingsWindow() {
         opacity
       })
       
+      // Save monitor settings
+      await window.settingsAPI.setMonitorSettings({
+        screenshotMonitorId,
+        displayMonitorId
+      })
+      
       // Close the settings window after successful save
       window.settingsAPI.closeWindow()
     } catch (error) {
@@ -96,10 +140,14 @@ export function SettingsWindow() {
         </div>
 
         <Tabs defaultValue="api" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="api" className="flex items-center gap-2">
               <Key className="w-4 h-4" />
               API
+            </TabsTrigger>
+            <TabsTrigger value="display" className="flex items-center gap-2">
+              <Monitor className="w-4 h-4" />
+              Display
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Eye className="w-4 h-4" />
@@ -171,6 +219,42 @@ export function SettingsWindow() {
                     </SelectContent>
                   </Select>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="display" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Multi-Monitor Settings</CardTitle>
+                <CardDescription>
+                  Configure which monitors to use for different functions
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <MonitorSelector
+                  label="Screenshot Monitor"
+                  description="Select which monitor to capture when taking screenshots"
+                  value={screenshotMonitorId}
+                  onChange={setScreenshotMonitorId}
+                  monitors={monitors}
+                />
+                
+                <MonitorSelector
+                  label="Display Monitor"
+                  description="Select which monitor to display the application window on"
+                  value={displayMonitorId}
+                  onChange={setDisplayMonitorId}
+                  monitors={monitors}
+                />
+                
+                {monitors.length === 0 && (
+                  <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <p className="text-sm text-yellow-500">
+                      No monitors detected. Please check your display connections.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

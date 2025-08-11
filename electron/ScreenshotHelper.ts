@@ -8,6 +8,8 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import screenshot from "screenshot-desktop";
 import os from "os";
+import { configHelper } from "./ConfigHelper";
+import { monitorHelper } from "./MonitorHelper";
 
 const execFileAsync = promisify(execFile);
 
@@ -165,9 +167,33 @@ export class ScreenshotHelper {
 
       // For macOS and Linux, use buffer directly
       console.log("Taking screenshot on non-Windows platform");
-      const buffer = await screenshot({ format: "png" });
+      
+      // Get the selected monitor configuration
+      const screenshotMonitorId = configHelper.getScreenshotMonitorId();
+      const monitors = monitorHelper.getMonitors();
+      let screenIndex = 0;
+      
+      if (screenshotMonitorId) {
+        // Find the index of the selected monitor
+        const selectedMonitor = monitorHelper.getMonitor(screenshotMonitorId);
+        if (selectedMonitor) {
+          // Find matching monitor index based on bounds
+          screenIndex = monitors.findIndex(m => 
+            m.bounds.x === selectedMonitor.bounds.x &&
+            m.bounds.y === selectedMonitor.bounds.y
+          );
+          if (screenIndex === -1) screenIndex = 0; // Fallback to primary
+        }
+      }
+      
+      console.log(`Capturing from screen ${screenIndex}`);
+      
+      const buffer = await screenshot({ 
+        format: "png",
+        screen: screenIndex // Specify which screen to capture
+      });
       console.log(
-        `Screenshot captured successfully, size: ${buffer.length} bytes`
+        `Screenshot captured successfully, size: ${buffer.length} bytes from screen ${screenIndex}`
       );
       return buffer;
     } catch (error) {
@@ -181,6 +207,13 @@ export class ScreenshotHelper {
    */
   private async captureWindowsScreenshot(): Promise<Buffer> {
     console.log("Attempting Windows screenshot with multiple methods");
+    
+    // Get the selected monitor configuration
+    const screenshotMonitorId = configHelper.getScreenshotMonitorId();
+    const targetDisplay = monitorHelper.getDisplayForMonitor(screenshotMonitorId);
+    
+    console.log(`Capturing screenshot from monitor: ${screenshotMonitorId || 'primary'}`);
+    console.log(`Target display bounds:`, targetDisplay.bounds);
 
     // Method 1: Try screenshot-desktop with filename first
     try {
@@ -188,13 +221,33 @@ export class ScreenshotHelper {
       console.log(
         `Taking Windows screenshot to temp file (Method 1): ${tempFile}`
       );
+      
+      // Get all monitors for screenshot-desktop
+      const monitors = monitorHelper.getMonitors();
+      let screenIndex = 0;
+      
+      if (screenshotMonitorId) {
+        // Find the index of the selected monitor
+        const selectedMonitor = monitorHelper.getMonitor(screenshotMonitorId);
+        if (selectedMonitor) {
+          // Find matching monitor index based on bounds
+          screenIndex = monitors.findIndex(m => 
+            m.bounds.x === selectedMonitor.bounds.x &&
+            m.bounds.y === selectedMonitor.bounds.y
+          );
+          if (screenIndex === -1) screenIndex = 0; // Fallback to primary
+        }
+      }
 
-      await screenshot({ filename: tempFile });
+      await screenshot({ 
+        filename: tempFile,
+        screen: screenIndex // Specify which screen to capture
+      });
 
       if (fs.existsSync(tempFile)) {
         const buffer = await fs.promises.readFile(tempFile);
         console.log(
-          `Method 1 successful, screenshot size: ${buffer.length} bytes`
+          `Method 1 successful, screenshot size: ${buffer.length} bytes from screen ${screenIndex}`
         );
 
         // Cleanup temp file
@@ -218,24 +271,49 @@ export class ScreenshotHelper {
         const tempFile = path.join(this.tempDir, `ps-temp-${uuidv4()}.png`);
 
         // PowerShell command to take screenshot using .NET classes
-        const psScript = `
-        Add-Type -AssemblyName System.Windows.Forms,System.Drawing
-        $screens = [System.Windows.Forms.Screen]::AllScreens
-        $top = ($screens | ForEach-Object {$_.Bounds.Top} | Measure-Object -Minimum).Minimum
-        $left = ($screens | ForEach-Object {$_.Bounds.Left} | Measure-Object -Minimum).Minimum
-        $width = ($screens | ForEach-Object {$_.Bounds.Right} | Measure-Object -Maximum).Maximum
-        $height = ($screens | ForEach-Object {$_.Bounds.Bottom} | Measure-Object -Maximum).Maximum
-        $bounds = [System.Drawing.Rectangle]::FromLTRB($left, $top, $width, $height)
-        $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
-        $graphics = [System.Drawing.Graphics]::FromImage($bmp)
-        $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
-        $bmp.Save('${tempFile.replace(
-          /\\/g,
-          "\\\\"
-        )}', [System.Drawing.Imaging.ImageFormat]::Png)
-        $graphics.Dispose()
-        $bmp.Dispose()
-        `;
+        // Support specific monitor if selected
+        let psScript: string;
+        
+        if (screenshotMonitorId && targetDisplay) {
+          // Capture specific monitor
+          psScript = `
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $left = ${targetDisplay.bounds.x}
+          $top = ${targetDisplay.bounds.y}
+          $width = ${targetDisplay.bounds.width}
+          $height = ${targetDisplay.bounds.height}
+          $bounds = [System.Drawing.Rectangle]::FromLTRB($left, $top, $left + $width, $top + $height)
+          $bmp = New-Object System.Drawing.Bitmap $width, $height
+          $graphics = [System.Drawing.Graphics]::FromImage($bmp)
+          $graphics.CopyFromScreen($left, $top, 0, 0, [System.Drawing.Size]::new($width, $height))
+          $bmp.Save('${tempFile.replace(
+            /\\/g,
+            "\\\\"
+          )}', [System.Drawing.Imaging.ImageFormat]::Png)
+          $graphics.Dispose()
+          $bmp.Dispose()
+          `;
+        } else {
+          // Capture all screens (default behavior)
+          psScript = `
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $screens = [System.Windows.Forms.Screen]::AllScreens
+          $top = ($screens | ForEach-Object {$_.Bounds.Top} | Measure-Object -Minimum).Minimum
+          $left = ($screens | ForEach-Object {$_.Bounds.Left} | Measure-Object -Minimum).Minimum
+          $width = ($screens | ForEach-Object {$_.Bounds.Right} | Measure-Object -Maximum).Maximum
+          $height = ($screens | ForEach-Object {$_.Bounds.Bottom} | Measure-Object -Maximum).Maximum
+          $bounds = [System.Drawing.Rectangle]::FromLTRB($left, $top, $width, $height)
+          $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bmp)
+          $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
+          $bmp.Save('${tempFile.replace(
+            /\\/g,
+            "\\\\"
+          )}', [System.Drawing.Imaging.ImageFormat]::Png)
+          $graphics.Dispose()
+          $bmp.Dispose()
+          `;
+        }
 
         // Execute PowerShell
         await execFileAsync("powershell", [

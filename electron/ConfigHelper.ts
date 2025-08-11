@@ -9,6 +9,8 @@ interface Config {
   apiProvider: "gemini";  // Only Gemini supported
   language: string;
   opacity: number;
+  screenshotMonitorId?: string;  // Monitor ID for taking screenshots
+  displayMonitorId?: string;     // Monitor ID for displaying main window
 }
 
 export class ConfigHelper extends EventEmitter {
@@ -17,7 +19,9 @@ export class ConfigHelper extends EventEmitter {
     apiKey: "",
     apiProvider: "gemini", // Only Gemini supported
     language: "python",
-    opacity: 1.0
+    opacity: 1.0,
+    screenshotMonitorId: undefined,
+    displayMonitorId: undefined
   };
 
   constructor() {
@@ -173,6 +177,36 @@ export class ConfigHelper extends EventEmitter {
    */
   public setLanguage(language: string): void {
     this.updateConfig({ language });
+  }
+  
+  /**
+   * Get the monitor ID for screenshots
+   */
+  public getScreenshotMonitorId(): string | undefined {
+    const config = this.loadConfig();
+    return config.screenshotMonitorId;
+  }
+  
+  /**
+   * Set the monitor ID for screenshots
+   */
+  public setScreenshotMonitorId(monitorId: string | undefined): void {
+    this.updateConfig({ screenshotMonitorId: monitorId });
+  }
+  
+  /**
+   * Get the monitor ID for displaying main window
+   */
+  public getDisplayMonitorId(): string | undefined {
+    const config = this.loadConfig();
+    return config.displayMonitorId;
+  }
+  
+  /**
+   * Set the monitor ID for displaying main window
+   */
+  public setDisplayMonitorId(monitorId: string | undefined): void {
+    this.updateConfig({ displayMonitorId: monitorId });
   }
   
   /**

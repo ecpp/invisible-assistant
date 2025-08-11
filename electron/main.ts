@@ -7,6 +7,7 @@ import { ScreenshotHelper } from "./ScreenshotHelper"
 import { ShortcutsHelper } from "./shortcuts"
 import { initAutoUpdater } from "./autoUpdater"
 import { configHelper } from "./ConfigHelper"
+import { monitorHelper } from "./MonitorHelper"
 import * as dotenv from "dotenv"
 
 // Constants
@@ -200,12 +201,19 @@ async function createWindow(): Promise<void> {
     return
   }
 
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const workArea = primaryDisplay.workAreaSize
+  // Get the selected display monitor or fallback to primary
+  const displayMonitorId = configHelper.getDisplayMonitorId()
+  const targetDisplay = monitorHelper.getDisplayForMonitor(displayMonitorId)
+  const workArea = targetDisplay.workArea
+  
+  console.log(`Creating main window on monitor: ${displayMonitorId || 'primary'}`);
+  console.log(`Target display bounds:`, targetDisplay.bounds);
+  
   state.screenWidth = workArea.width
   state.screenHeight = workArea.height
   state.step = 60
-  state.currentY = 50
+  state.currentX = targetDisplay.bounds.x  // Start at the left edge of the selected monitor
+  state.currentY = targetDisplay.bounds.y + 50  // 50 pixels from top of the selected monitor
 
   const windowSettings: Electron.BrowserWindowConstructorOptions = {
     width: 800,
@@ -213,7 +221,7 @@ async function createWindow(): Promise<void> {
     minWidth: 750,
     minHeight: 550,
     x: state.currentX,
-    y: 50,
+    y: state.currentY,
     alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
@@ -403,12 +411,37 @@ function hideMainWindow(): void {
 
 function showMainWindow(): void {
   if (!state.mainWindow?.isDestroyed()) {
-    if (state.windowPosition && state.windowSize) {
+    // Check if we should reposition to a different monitor
+    const displayMonitorId = configHelper.getDisplayMonitorId();
+    if (displayMonitorId) {
+      const targetMonitor = monitorHelper.getMonitor(displayMonitorId);
+      if (targetMonitor) {
+        // Check if window is currently on a different monitor
+        const currentBounds = state.mainWindow.getBounds();
+        const isOnTargetMonitor = 
+          currentBounds.x >= targetMonitor.bounds.x &&
+          currentBounds.x < (targetMonitor.bounds.x + targetMonitor.bounds.width) &&
+          currentBounds.y >= targetMonitor.bounds.y &&
+          currentBounds.y < (targetMonitor.bounds.y + targetMonitor.bounds.height);
+        
+        if (!isOnTargetMonitor) {
+          // Move window to the selected monitor
+          console.log(`Moving window to monitor: ${displayMonitorId}`);
+          state.mainWindow.setBounds({
+            x: targetMonitor.bounds.x,
+            y: targetMonitor.bounds.y + 50,
+            width: currentBounds.width,
+            height: currentBounds.height
+          });
+        }
+      }
+    } else if (state.windowPosition && state.windowSize) {
       state.mainWindow.setBounds({
         ...state.windowPosition,
         ...state.windowSize
       });
     }
+    
     state.mainWindow.setIgnoreMouseEvents(false);
     state.mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
     state.mainWindow.setVisibleOnAllWorkspaces(true, {
@@ -506,6 +539,10 @@ function loadEnvVariables() {
 // Initialize application
 async function initializeApp() {
   try {
+    // Initialize MonitorHelper after app is ready
+    monitorHelper.initialize()
+    console.log('MonitorHelper initialized')
+    
     // Set custom cache directory to prevent permission issues
     const appDataPath = path.join(app.getPath('appData'), 'interview-coder-v1')
     const sessionPath = path.join(appDataPath, 'session')
@@ -570,6 +607,59 @@ async function initializeApp() {
       isDev ? "development" : "production",
       "mode"
     )
+    
+    // Listen for monitor settings changes
+    ipcMain.on('monitor-settings-changed', (_event, { displayMonitorId }) => {
+      console.log(`Monitor settings changed. Display monitor: ${displayMonitorId}`);
+      
+      // If window is visible and display monitor changed, move it to the new monitor
+      if (state.isWindowVisible && displayMonitorId && state.mainWindow && !state.mainWindow.isDestroyed()) {
+        const targetMonitor = monitorHelper.getMonitor(displayMonitorId);
+        if (targetMonitor) {
+          const currentBounds = state.mainWindow.getBounds();
+          console.log(`Moving window to new display monitor: ${displayMonitorId}`);
+          state.mainWindow.setBounds({
+            x: targetMonitor.bounds.x,
+            y: targetMonitor.bounds.y + 50,
+            width: currentBounds.width,
+            height: currentBounds.height
+          });
+        }
+      }
+    });
+    
+    // Listen for monitor configuration changes (hot plug/unplug)
+    monitorHelper.on('monitors-changed', (monitors) => {
+      console.log(`Monitor configuration changed. ${monitors.length} monitor(s) detected.`);
+      
+      // Check if the currently selected monitors are still valid
+      const displayMonitorId = configHelper.getDisplayMonitorId();
+      const screenshotMonitorId = configHelper.getScreenshotMonitorId();
+      
+      if (displayMonitorId && !monitorHelper.isMonitorValid(displayMonitorId)) {
+        console.warn(`Display monitor ${displayMonitorId} is no longer available. Reverting to primary.`);
+        configHelper.setDisplayMonitorId(undefined);
+        
+        // Move window to primary monitor if it's visible
+        if (state.isWindowVisible && state.mainWindow && !state.mainWindow.isDestroyed()) {
+          const primaryMonitor = monitorHelper.getPrimaryMonitor();
+          if (primaryMonitor) {
+            const currentBounds = state.mainWindow.getBounds();
+            state.mainWindow.setBounds({
+              x: primaryMonitor.bounds.x,
+              y: primaryMonitor.bounds.y + 50,
+              width: currentBounds.width,
+              height: currentBounds.height
+            });
+          }
+        }
+      }
+      
+      if (screenshotMonitorId && !monitorHelper.isMonitorValid(screenshotMonitorId)) {
+        console.warn(`Screenshot monitor ${screenshotMonitorId} is no longer available. Reverting to primary.`);
+        configHelper.setScreenshotMonitorId(undefined);
+      }
+    });
   } catch (error) {
     console.error("Failed to initialize application:", error)
     app.quit()

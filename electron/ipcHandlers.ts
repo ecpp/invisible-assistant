@@ -5,6 +5,7 @@ import { randomBytes } from "crypto"
 import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
 import { conversationManager } from "./ConversationManager"
+import { monitorHelper } from "./MonitorHelper"
 
 export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   console.log("Initializing IPC handlers")
@@ -494,4 +495,63 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       return { success: false, error: "Failed to set window bounds" }
     }
   })
+  
+  // Monitor management handlers
+  ipcMain.handle("get-monitors", () => {
+    try {
+      const monitors = monitorHelper.getMonitors();
+      return { success: true, monitors };
+    } catch (error) {
+      console.error("Error getting monitors:", error);
+      return { success: false, error: "Failed to get monitors" };
+    }
+  })
+  
+  ipcMain.handle("get-monitor-settings", () => {
+    try {
+      const screenshotMonitorId = configHelper.getScreenshotMonitorId();
+      const displayMonitorId = configHelper.getDisplayMonitorId();
+      return { 
+        success: true, 
+        screenshotMonitorId,
+        displayMonitorId
+      };
+    } catch (error) {
+      console.error("Error getting monitor settings:", error);
+      return { success: false, error: "Failed to get monitor settings" };
+    }
+  })
+  
+  ipcMain.handle("set-monitor-settings", (_event, { screenshotMonitorId, displayMonitorId }) => {
+    try {
+      if (screenshotMonitorId !== undefined) {
+        configHelper.setScreenshotMonitorId(screenshotMonitorId);
+      }
+      if (displayMonitorId !== undefined) {
+        configHelper.setDisplayMonitorId(displayMonitorId);
+      }
+      
+      // Notify main window of monitor change
+      const mainWindow = deps.getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("monitor-settings-changed", {
+          screenshotMonitorId,
+          displayMonitorId
+        });
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error("Error setting monitor settings:", error);
+      return { success: false, error: "Failed to set monitor settings" };
+    }
+  })
+  
+  // Listen for monitor changes and notify renderer
+  monitorHelper.on('monitors-changed', (monitors) => {
+    const mainWindow = deps.getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("monitors-changed", monitors);
+    }
+  });
 }
