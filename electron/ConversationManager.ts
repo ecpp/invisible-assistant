@@ -314,14 +314,14 @@ SESSION CONTEXT:
       const fullPrompt = conversationParts.join('\n');
 
       console.log('Sending to Gemini:', {
-        model: config.solutionModel || "gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         promptLength: fullPrompt.length,
         messageCount: session.messages.length
       });
 
       // Generate response with Gemini
       const response = await this.geminiClient.models.generateContent({
-        model: config.solutionModel || "gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         contents: createUserContent([fullPrompt]),
         config: {
           temperature: 0.7,
@@ -354,7 +354,7 @@ SESSION CONTEXT:
         content: response.text,
         timestamp: Date.now(),
         metadata: {
-          model: config.solutionModel || "gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           processingTime
         }
       };

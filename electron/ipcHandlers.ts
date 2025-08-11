@@ -277,13 +277,29 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Settings portal handler
-  ipcMain.handle("open-settings-portal", () => {
-    const mainWindow = deps.getMainWindow();
-    if (mainWindow) {
-      mainWindow.webContents.send("show-settings-dialog");
+  ipcMain.handle("open-settings-portal", async () => {
+    try {
+      const { createSettingsWindow } = require("./main");
+      await createSettingsWindow();
       return { success: true };
+    } catch (error) {
+      console.error("Error opening settings window:", error);
+      return { success: false, error: "Failed to open settings window" };
     }
-    return { success: false, error: "Main window not available" };
+  })
+
+  // Close settings window handler
+  ipcMain.handle("close-settings-window", () => {
+    try {
+      const { state } = require("./main");
+      if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
+        state.settingsWindow.close();
+      }
+      return { success: true };
+    } catch (error) {
+      console.error("Error closing settings window:", error);
+      return { success: false, error: "Failed to close settings window" };
+    }
   })
 
   // Window management handlers

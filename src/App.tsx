@@ -14,7 +14,6 @@ import {
 } from "./components/ui/toast"
 import { ToastContext } from "./contexts/toast"
 import { WelcomeScreen } from "./components/WelcomeScreen"
-import { SettingsDialog } from "./components/Settings/SettingsDialog"
 import { WindowDragger } from "./components/WindowDragger"
 import { WindowResizer } from "./components/WindowResizer"
 import { ConversationProvider } from "./contexts/ConversationContext"
@@ -49,7 +48,6 @@ function App() {
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
   // Note: Model selection is now handled via separate extraction/solution/debugging model settings
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Set unlimited credits
   const updateCredits = useCallback(() => {
@@ -93,10 +91,10 @@ function App() {
         const hasKey = await window.electronAPI.checkApiKey()
         setHasApiKey(hasKey)
         
-        // If no API key is found, show the settings dialog after a short delay
+        // If no API key is found, open the settings window after a short delay
         if (!hasKey) {
           setTimeout(() => {
-            setIsSettingsOpen(true)
+            window.electronAPI.openSettingsPortal()
           }, 1000)
         }
       } catch (error) {
@@ -138,17 +136,6 @@ function App() {
     }
   }, [isInitialized]);
 
-  // Listen for settings dialog open requests
-  useEffect(() => {
-    const unsubscribeSettings = window.electronAPI.onShowSettings(() => {
-      console.log("Show settings dialog requested");
-      setIsSettingsOpen(true);
-    });
-    
-    return () => {
-      unsubscribeSettings();
-    };
-  }, []);
 
   // Initialize basic app state
   useEffect(() => {
@@ -214,13 +201,8 @@ function App() {
 
   // API Key dialog management
   const handleOpenSettings = useCallback(() => {
-    console.log('Opening settings dialog');
-    setIsSettingsOpen(true);
-  }, []);
-  
-  const handleCloseSettings = useCallback((open: boolean) => {
-    console.log('Settings dialog state changed:', open);
-    setIsSettingsOpen(open);
+    console.log('Opening settings window');
+    window.electronAPI.openSettingsPortal();
   }, []);
 
   const handleApiKeySave = useCallback(async (apiKey: string) => {
@@ -271,12 +253,6 @@ function App() {
               </div>
               </WindowResizer>
             </WindowDragger>
-            
-            {/* Settings Dialog */}
-            <SettingsDialog 
-              open={isSettingsOpen} 
-              onOpenChange={handleCloseSettings} 
-            />
             
             <Toast
               open={toastState.open}

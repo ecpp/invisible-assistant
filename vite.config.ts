@@ -34,6 +34,19 @@ export default defineConfig({
             }
           }
         }
+      },
+      {
+        // settingsPreload.ts
+        entry: "electron/settingsPreload.ts",
+        vite: {
+          build: {
+            outDir: "dist-electron",
+            sourcemap: true,
+            rollupOptions: {
+              external: ["electron"]
+            }
+          }
+        }
       }
     ])
   ],
@@ -48,7 +61,13 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        settings: path.resolve(__dirname, 'settings.html')
+      }
+    }
   },
   resolve: {
     alias: {

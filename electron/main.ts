@@ -16,6 +16,7 @@ const isDev = process.env.NODE_ENV === "development"
 const state = {
   // Window management properties
   mainWindow: null as BrowserWindow | null,
+  settingsWindow: null as BrowserWindow | null,
   isWindowVisible: false,
   windowPosition: null as { x: number; y: number } | null,
   windowSize: null as { width: number; height: number } | null,
@@ -685,10 +686,84 @@ function getHasDebugged(): boolean {
   return state.hasDebugged
 }
 
+// Settings window functions
+async function createSettingsWindow(): Promise<void> {
+  if (state.settingsWindow && !state.settingsWindow.isDestroyed()) {
+    state.settingsWindow.focus()
+    return
+  }
+
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const workArea = primaryDisplay.workAreaSize
+
+  state.settingsWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    minWidth: 600,
+    minHeight: 400,
+    x: Math.round((workArea.width - 800) / 2),
+    y: Math.round((workArea.height - 600) / 2),
+    parent: state.mainWindow || undefined,
+    modal: true,
+    show: false,
+    frame: true,
+    resizable: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: isDev
+        ? path.join(__dirname, "../dist-electron/settingsPreload.js")
+        : path.join(__dirname, "settingsPreload.js")
+    }
+  })
+
+  // Load the settings HTML
+  if (isDev) {
+    // In development, load from dev server
+    console.log("Loading settings from dev server: http://localhost:54321/public/settings.html")
+    state.settingsWindow.loadURL("http://localhost:54321/public/settings.html").catch((error) => {
+      console.error("Failed to load settings from dev server:", error)
+      // Fallback to local file
+      const settingsPath = path.join(__dirname, "../dist/public/settings.html")
+      console.log("Trying fallback path:", settingsPath)
+      if (fs.existsSync(settingsPath)) {
+        state.settingsWindow?.loadFile(settingsPath)
+      } else {
+        console.error("Settings HTML not found at fallback path")
+      }
+    })
+  } else {
+    // In production, load from built files
+    const settingsPath = path.join(__dirname, "../dist/public/settings.html")
+    console.log("Loading settings from production build:", settingsPath)
+    if (fs.existsSync(settingsPath)) {
+      state.settingsWindow.loadFile(settingsPath)
+    } else {
+      // Try alternate path
+      const alternatePath = path.join(__dirname, "../dist/settings.html")
+      console.log("Primary path not found, trying alternate:", alternatePath)
+      if (fs.existsSync(alternatePath)) {
+        state.settingsWindow.loadFile(alternatePath)
+      } else {
+        console.error("Settings HTML not found at any expected location")
+      }
+    }
+  }
+
+  state.settingsWindow.once("ready-to-show", () => {
+    state.settingsWindow?.show()
+  })
+
+  state.settingsWindow.on("closed", () => {
+    state.settingsWindow = null
+  })
+}
+
 // Export state and functions for other modules
 export {
   state,
   createWindow,
+  createSettingsWindow,
   hideMainWindow,
   showMainWindow,
   toggleMainWindow,

@@ -7,9 +7,6 @@ import { EventEmitter } from "events"
 interface Config {
   apiKey: string;
   apiProvider: "gemini";  // Only Gemini supported
-  extractionModel: string;
-  solutionModel: string;
-  debuggingModel: string;
   language: string;
   opacity: number;
 }
@@ -19,9 +16,6 @@ export class ConfigHelper extends EventEmitter {
   private defaultConfig: Config = {
     apiKey: "",
     apiProvider: "gemini", // Only Gemini supported
-    extractionModel: "gemini-2.5-flash", // Default to latest Flash model
-    solutionModel: "gemini-2.5-flash",
-    debuggingModel: "gemini-2.5-flash",
     language: "python",
     opacity: 1.0
   };
@@ -57,15 +51,6 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Validate and sanitize model selection to ensure only allowed Gemini models are used
    */
-  private sanitizeModelSelection(model: string): string {
-    // Only allow Gemini models
-    const allowedModels = ['gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'];
-    if (!allowedModels.includes(model)) {
-      console.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-2.5-flash`);
-      return 'gemini-2.5-flash';
-    }
-    return model;
-  }
 
   public loadConfig(): Config {
     try {
@@ -75,17 +60,6 @@ export class ConfigHelper extends EventEmitter {
         
         // Ensure apiProvider is Gemini (only supported provider)
         config.apiProvider = "gemini";
-        
-        // Sanitize model selections to ensure only allowed Gemini models are used
-        if (config.extractionModel) {
-          config.extractionModel = this.sanitizeModelSelection(config.extractionModel);
-        }
-        if (config.solutionModel) {
-          config.solutionModel = this.sanitizeModelSelection(config.solutionModel);
-        }
-        if (config.debuggingModel) {
-          config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel);
-        }
         
         return {
           ...this.defaultConfig,
@@ -134,32 +108,15 @@ export class ConfigHelper extends EventEmitter {
         console.log("Using Gemini API (only supported provider)");
       }
       
-      // Always use Gemini models (only supported provider)
-      if (updates.apiProvider && updates.apiProvider !== currentConfig.apiProvider) {
-        updates.extractionModel = "gemini-2.5-flash";
-        updates.solutionModel = "gemini-2.5-flash";
-        updates.debuggingModel = "gemini-2.5-flash";
-      }
-      
-      // Sanitize model selections in the updates
-      if (updates.extractionModel) {
-        updates.extractionModel = this.sanitizeModelSelection(updates.extractionModel);
-      }
-      if (updates.solutionModel) {
-        updates.solutionModel = this.sanitizeModelSelection(updates.solutionModel);
-      }
-      if (updates.debuggingModel) {
-        updates.debuggingModel = this.sanitizeModelSelection(updates.debuggingModel);
-      }
+      // Always use Gemini (only supported provider)
+      updates.apiProvider = "gemini";
       
       const newConfig = { ...currentConfig, ...updates };
       this.saveConfig(newConfig);
       
       // Only emit update event for changes other than opacity
       // This prevents re-initializing the AI client when only opacity changes
-      if (updates.apiKey !== undefined || updates.apiProvider !== undefined || 
-          updates.extractionModel !== undefined || updates.solutionModel !== undefined || 
-          updates.debuggingModel !== undefined || updates.language !== undefined) {
+      if (updates.apiKey !== undefined || updates.language !== undefined) {
         this.emit('config-updated', newConfig);
       }
       

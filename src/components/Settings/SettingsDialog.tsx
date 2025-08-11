@@ -39,13 +39,13 @@ const modelCategories: ModelCategory[] = [
         description: "Latest and fastest model with excellent multimodal capabilities"
       },
       {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
         description: "High-quality model with strong reasoning capabilities"
       },
       {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
         description: "Fast and efficient for most tasks"
       }
     ]
@@ -62,13 +62,13 @@ const modelCategories: ModelCategory[] = [
         description: "Latest model with excellent coding capabilities"
       },
       {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
         description: "Strong performance for complex coding problems"
       },
       {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
         description: "Good balance of speed and quality for solutions"
       }
     ],
@@ -86,13 +86,13 @@ const modelCategories: ModelCategory[] = [
         description: "Excellent for analyzing code and error messages"
       },
       {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
         description: "Best for detailed debugging analysis"
       },
       {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
         description: "Fast debugging assistance"
       }
     ],

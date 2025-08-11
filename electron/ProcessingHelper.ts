@@ -429,7 +429,7 @@ export class ProcessingHelper {
         ];
 
         const response = await this.geminiClient.models.generateContent({
-          model: config.extractionModel || "gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           contents: createUserContent(contentParts),
           config: {
             temperature: 0.2,
@@ -592,7 +592,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
 
       try {
         const response = await this.geminiClient.models.generateContent({
-          model: config.solutionModel || "gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           contents: createUserContent([
             `You are an expert coding interview assistant. Provide a clear, optimal solution with detailed explanations for this problem:\n\n${promptText}`
           ]),
@@ -774,7 +774,7 @@ If you include code examples, use proper markdown code blocks with language spec
         ];
 
         const response = await this.geminiClient.models.generateContent({
-          model: config.debuggingModel || "gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           contents: createUserContent(contentParts),
           config: {
             temperature: 0.2,

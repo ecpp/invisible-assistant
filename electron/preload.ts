@@ -207,13 +207,6 @@ const electronAPI = {
   getConfig: () => ipcRenderer.invoke("get-config"),
   updateConfig: (config: { apiKey?: string; model?: string; language?: string; opacity?: number }) => 
     ipcRenderer.invoke("update-config", config),
-  onShowSettings: (callback: () => void) => {
-    const subscription = () => callback()
-    ipcRenderer.on("show-settings-dialog", subscription)
-    return () => {
-      ipcRenderer.removeListener("show-settings-dialog", subscription)
-    }
-  },
   checkApiKey: () => ipcRenderer.invoke("check-api-key"),
   validateApiKey: (apiKey: string) => 
     ipcRenderer.invoke("validate-api-key", apiKey),
