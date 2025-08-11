@@ -199,6 +199,7 @@ const Solutions: React.FC<SolutionsProps> = ({
   const [tooltipHeight, setTooltipHeight] = useState(0)
 
   const [isResetting, setIsResetting] = useState(false)
+  const [maxContainerHeight, setMaxContainerHeight] = useState(800)
 
   interface Screenshot {
     id: string
@@ -236,17 +237,33 @@ const Solutions: React.FC<SolutionsProps> = ({
   const { showToast } = useToast()
 
   useEffect(() => {
-    // Height update logic
+    // Height update logic with max height for solution view
     const updateDimensions = () => {
       if (contentRef.current) {
         let contentHeight = contentRef.current.scrollHeight
         const contentWidth = contentRef.current.scrollWidth
+        
         if (isTooltipVisible) {
           contentHeight += tooltipHeight
         }
+        
+        // Set maximum height for solution view to prevent window from growing too tall
+        // This ensures the window stays manageable and content becomes scrollable
+        const screenHeight = window.screen.availHeight
+        const maxHeight = Math.min(
+          800, // Max 800px on large screens
+          screenHeight > 900 ? screenHeight * 0.75 : screenHeight * 0.8 // 75% for large screens, 80% for smaller
+        )
+        const finalHeight = Math.min(contentHeight, maxHeight)
+        
+        // Update the max container height state for CSS
+        if (maxContainerHeight !== maxHeight) {
+          setMaxContainerHeight(maxHeight)
+        }
+        
         window.electronAPI.updateContentDimensions({
           width: contentWidth,
-          height: contentHeight
+          height: finalHeight
         })
       }
     }
@@ -488,7 +505,15 @@ const Solutions: React.FC<SolutionsProps> = ({
           setLanguage={setLanguage}
         />
       ) : (
-        <div ref={contentRef} className="relative">
+        <div 
+          ref={contentRef} 
+          className="relative overflow-y-auto scroll-smooth solution-scrollable"
+          style={{
+            maxHeight: `${maxContainerHeight}px`,
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent'
+          }}
+        >
           <div className="space-y-3 px-4 py-3">
           {/* Conditionally render the screenshot queue if solutionData is available */}
           {solutionData && (
