@@ -708,6 +708,9 @@ async function createSettingsWindow(): Promise<void> {
     show: false,
     frame: true,
     resizable: true,
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -716,6 +719,15 @@ async function createSettingsWindow(): Promise<void> {
         : path.join(__dirname, "settingsPreload.js")
     }
   })
+
+  // Enhanced screen capture resistance for settings window
+  state.settingsWindow.setContentProtection(true)
+  
+  // Additional screen capture resistance settings for macOS
+  if (process.platform === "darwin") {
+    state.settingsWindow.setHiddenInMissionControl(true)
+    state.settingsWindow.setWindowButtonVisibility(false)
+  }
 
   // Load the settings HTML
   if (isDev) {
