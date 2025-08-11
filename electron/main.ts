@@ -540,7 +540,7 @@ function loadEnvVariables() {
 async function initializeApp() {
   try {
     // Initialize MonitorHelper after app is ready
-    monitorHelper.initialize()
+    await monitorHelper.initialize()
     console.log('MonitorHelper initialized')
     
     // Set custom cache directory to prevent permission issues

@@ -1,5 +1,9 @@
 import { screen, Display } from "electron";
 import { EventEmitter } from "events";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 export interface MonitorInfo {
   id: string;
@@ -33,11 +37,11 @@ export class MonitorHelper extends EventEmitter {
   /**
    * Initialize the monitor helper after app is ready
    */
-  public initialize(): void {
+  public async initialize(): Promise<void> {
     if (this.isInitialized) return;
     
     this.isInitialized = true;
-    this.detectMonitors();
+    await this.detectMonitors();
     this.startMonitoring();
   }
   
@@ -46,28 +50,28 @@ export class MonitorHelper extends EventEmitter {
    */
   private startMonitoring(): void {
     // Listen for display events
-    screen.on('display-added', () => {
+    screen.on('display-added', async () => {
       console.log('Display added detected');
-      this.detectMonitors();
+      await this.detectMonitors();
       this.emit('monitors-changed', this.getMonitors());
     });
     
-    screen.on('display-removed', () => {
+    screen.on('display-removed', async () => {
       console.log('Display removed detected');
-      this.detectMonitors();
+      await this.detectMonitors();
       this.emit('monitors-changed', this.getMonitors());
     });
     
-    screen.on('display-metrics-changed', () => {
+    screen.on('display-metrics-changed', async () => {
       console.log('Display metrics changed');
-      this.detectMonitors();
+      await this.detectMonitors();
       this.emit('monitors-changed', this.getMonitors());
     });
     
     // Also poll periodically as a fallback (every 5 seconds)
-    this.updateInterval = setInterval(() => {
+    this.updateInterval = setInterval(async () => {
       const previousCount = this.monitors.size;
-      this.detectMonitors();
+      await this.detectMonitors();
       const currentCount = this.monitors.size;
       
       if (previousCount !== currentCount) {
@@ -87,20 +91,113 @@ export class MonitorHelper extends EventEmitter {
   }
   
   /**
+   * Get Windows display names using multiple methods
+   */
+  private async getWindowsDisplayNames(): Promise<Map<number, string>> {
+    const displayNames = new Map<number, string>();
+    
+    if (process.platform !== 'win32') {
+      return displayNames;
+    }
+    
+    // Method 1: Try Get-PnpDevice first as it's more reliable
+    try {
+      const pnpCommand = 'Get-PnpDevice -Class Monitor -Status OK | Select-Object -ExpandProperty FriendlyName';
+      const { stdout: pnpOutput } = await execAsync(`powershell -NoProfile -Command "${pnpCommand}"`);
+      const pnpNames = pnpOutput.trim().split(/\r?\n/).filter(n => n.trim());
+      
+      if (pnpNames.length > 0) {
+        pnpNames.forEach((name, index) => {
+          let cleanName = name.trim();
+          
+          // Extract the actual monitor model from parentheses if present
+          // e.g., "Integrated Monitor (TL140ADXP01)" -> "TL140ADXP01"
+          const modelMatch = cleanName.match(/\(([^)]+)\)/);
+          if (modelMatch && modelMatch[1]) {
+            cleanName = modelMatch[1];
+          } else {
+            // Remove "Generic PnP Monitor" if that's all we have
+            cleanName = cleanName.replace(/Generic PnP Monitor/i, '').trim();
+            
+            // If we still have something meaningful, use it
+            if (!cleanName || cleanName === '') {
+              cleanName = `Display ${index + 1}`;
+            }
+          }
+          
+          displayNames.set(index, cleanName);
+        });
+        console.log('Retrieved display names via Get-PnpDevice:', Array.from(displayNames.values()));
+        return displayNames; // Return early if successful
+      }
+    } catch (pnpError) {
+      console.warn('Get-PnpDevice failed:', pnpError);
+    }
+    
+    // Method 2: Try WMIC as fallback
+    if (displayNames.size === 0) {
+      try {
+        const { stdout } = await execAsync('wmic desktopmonitor get caption /value');
+        const lines = stdout.split(/\r?\n/);
+        let monitorIndex = 0;
+        
+        lines.forEach(line => {
+          if (line.startsWith('Caption=')) {
+            const name = line.substring(8).trim();
+            if (name && name !== '' && name !== 'Default Monitor') {
+              displayNames.set(monitorIndex++, name);
+            }
+          }
+        });
+        
+        if (displayNames.size > 0) {
+          console.log('Retrieved display names via WMIC:', Array.from(displayNames.values()));
+        }
+      } catch (wmicError) {
+        console.warn('WMIC fallback also failed:', wmicError);
+      }
+    }
+    
+    // If we still have no names, use generic names
+    if (displayNames.size === 0) {
+      const displays = screen.getAllDisplays();
+      displays.forEach((display, index) => {
+        displayNames.set(index, `Display ${index + 1}`);
+      });
+    }
+    
+    return displayNames;
+  }
+
+  /**
    * Detect all connected monitors
    */
-  private detectMonitors(): void {
+  private async detectMonitors(): Promise<void> {
     const displays = screen.getAllDisplays();
     const primaryDisplay = screen.getPrimaryDisplay();
     const newMonitors = new Map<string, MonitorInfo>();
+    
+    // Get Windows display names if on Windows
+    const windowsDisplayNames = await this.getWindowsDisplayNames();
     
     displays.forEach((display: Display, index: number) => {
       const monitorId = this.generateMonitorId(display);
       const isPrimary = display.id === primaryDisplay.id;
       
+      // Try to get the actual Windows display name, fallback to generic name
+      let displayName = windowsDisplayNames.get(index);
+      if (!displayName) {
+        displayName = `Display ${index + 1}`;
+      }
+      
+      // Add primary indicator to the name
+      if (isPrimary) {
+        displayName = `${displayName} (Primary)`;
+      }
+      
       const monitorInfo: MonitorInfo = {
         id: monitorId,
-        name: `Display ${index + 1}${isPrimary ? ' (Primary)' : ''}`,
+        name: displayName,
         isPrimary,
         bounds: display.bounds,
         workArea: display.workArea,
@@ -112,6 +209,9 @@ export class MonitorHelper extends EventEmitter {
     
     this.monitors = newMonitors;
     console.log(`Detected ${this.monitors.size} monitor(s)`);
+    this.monitors.forEach((monitor, id) => {
+      console.log(`  ${monitor.name}: ${monitor.bounds.width}x${monitor.bounds.height} at (${monitor.bounds.x}, ${monitor.bounds.y})`);
+    });
   }
   
   /**
