@@ -6,6 +6,7 @@ import { IProcessingHelperDeps } from "./main"
 import { app, BrowserWindow, dialog } from "electron"
 import { configHelper } from "./ConfigHelper"
 import { GoogleGenAI, createUserContent, createPartFromUri } from "@google/genai"
+import { conversationManager } from "./ConversationManager"
 export class ProcessingHelper {
   private deps: IProcessingHelperDeps
   private screenshotHelper: ScreenshotHelper
@@ -331,10 +332,36 @@ export class ProcessingHelper {
         )
 
         if (result.success) {
+          // Create or update conversation session for debugging
+          let conversationSession = conversationManager.getActiveSession();
+          
+          if (!conversationSession) {
+            const problemInfo = this.deps.getProblemInfo();
+            const language = await this.getLanguage();
+            
+            // Create new debug conversation session
+            conversationSession = conversationManager.createSession({
+              problemStatement: problemInfo?.problem_statement || "Debug session",
+              originalCode: result.data.code || "// Debug mode",
+              language: language,
+              debugContext: result.data.debug_analysis,
+              sessionType: 'debugging'
+            }, `debug_${Date.now()}`);
+            
+            conversationManager.setActiveSession(conversationSession.id);
+          }
+          
           this.deps.setHasDebugged(true)
+          
+          // Send debug result with conversation session ID
+          const responseData = {
+            ...result.data,
+            conversationSessionId: conversationSession.id
+          };
+          
           mainWindow.webContents.send(
             this.deps.PROCESSING_EVENTS.DEBUG_SUCCESS,
-            result.data
+            responseData
           )
         } else {
           mainWindow.webContents.send(
@@ -452,11 +479,29 @@ export class ProcessingHelper {
               progress: 100
             });
             
+            // Create conversation session after successful solution generation
+            const conversationSession = conversationManager.createSession({
+              problemStatement: problemInfo.problem_statement,
+              originalCode: solutionsResult.data.code,
+              language: language,
+              solutionSummary: `Generated solution with ${solutionsResult.data.thoughts.length} key insights. Time complexity: ${solutionsResult.data.time_complexity}. Space complexity: ${solutionsResult.data.space_complexity}.`,
+              sessionType: 'problem-solving'
+            }, `problem_${Date.now()}`);
+            
+            // Set as active session
+            conversationManager.setActiveSession(conversationSession.id);
+            
+            // Send solution with conversation session ID
+            const responseData = {
+              ...solutionsResult.data,
+              conversationSessionId: conversationSession.id
+            };
+            
             mainWindow.webContents.send(
               this.deps.PROCESSING_EVENTS.SOLUTION_SUCCESS,
-              solutionsResult.data
+              responseData
             );
-            return { success: true, data: solutionsResult.data };
+            return { success: true, data: responseData };
           } else {
             throw new Error(
               solutionsResult.error || "Failed to generate solutions"

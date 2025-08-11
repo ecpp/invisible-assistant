@@ -17,6 +17,7 @@ import { WelcomeScreen } from "./components/WelcomeScreen"
 import { SettingsDialog } from "./components/Settings/SettingsDialog"
 import { WindowDragger } from "./components/WindowDragger"
 import { WindowResizer } from "./components/WindowResizer"
+import { ConversationProvider } from "./contexts/ConversationContext"
 
 // Create a React Query client
 const queryClient = new QueryClient({
@@ -242,8 +243,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ToastContext.Provider value={{ showToast }}>
-          <WindowDragger>
-            <WindowResizer>
+          <ConversationProvider>
+            <WindowDragger>
+              <WindowResizer>
               <div className="relative h-screen overflow-hidden">
                 {isInitialized ? (
                   hasApiKey ? (
@@ -267,27 +269,28 @@ function App() {
                 )}
                 <UpdateNotification />
               </div>
-            </WindowResizer>
-          </WindowDragger>
-          
-          {/* Settings Dialog */}
-          <SettingsDialog 
-            open={isSettingsOpen} 
-            onOpenChange={handleCloseSettings} 
-          />
-          
-          <Toast
-            open={toastState.open}
-            onOpenChange={(open) =>
-              setToastState((prev) => ({ ...prev, open }))
-            }
-            variant={toastState.variant}
-            duration={1500}
-          >
-            <ToastTitle>{toastState.title}</ToastTitle>
-            <ToastDescription>{toastState.description}</ToastDescription>
-          </Toast>
-          <ToastViewport />
+              </WindowResizer>
+            </WindowDragger>
+            
+            {/* Settings Dialog */}
+            <SettingsDialog 
+              open={isSettingsOpen} 
+              onOpenChange={handleCloseSettings} 
+            />
+            
+            <Toast
+              open={toastState.open}
+              onOpenChange={(open) =>
+                setToastState((prev) => ({ ...prev, open }))
+              }
+              variant={toastState.variant}
+              duration={1500}
+            >
+              <ToastTitle>{toastState.title}</ToastTitle>
+              <ToastDescription>{toastState.description}</ToastDescription>
+            </Toast>
+            <ToastViewport />
+          </ConversationProvider>
         </ToastContext.Provider>
       </ToastProvider>
     </QueryClientProvider>

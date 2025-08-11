@@ -4,9 +4,85 @@ import { ipcMain, shell, dialog } from "electron"
 import { randomBytes } from "crypto"
 import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
+import { conversationManager } from "./ConversationManager"
 
 export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   console.log("Initializing IPC handlers")
+  
+  // Conversation handlers
+  ipcMain.handle("conversation-create", async (_event, context, problemId) => {
+    try {
+      const session = conversationManager.createSession(context, problemId);
+      return { success: true, session };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-send-message", async (_event, sessionId, message) => {
+    try {
+      const response = await conversationManager.sendMessage(sessionId, message);
+      return response;
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-get", (_event, sessionId) => {
+    try {
+      const session = conversationManager.getSession(sessionId);
+      return { success: true, session };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-list", () => {
+    try {
+      const sessions = conversationManager.listSessions();
+      const activeSessionId = conversationManager.getActiveSessionId();
+      return { success: true, sessions, activeSessionId };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-delete", (_event, sessionId) => {
+    try {
+      const result = conversationManager.deleteSession(sessionId);
+      return { success: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-set-active", (_event, sessionId) => {
+    try {
+      const result = conversationManager.setActiveSession(sessionId);
+      return { success: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-get-active", () => {
+    try {
+      const session = conversationManager.getActiveSession();
+      const sessionId = conversationManager.getActiveSessionId();
+      return { success: true, session, sessionId };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-cleanup", (_event, maxSessions = 50) => {
+    try {
+      conversationManager.cleanupOldSessions(maxSessions);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
 
   // Configuration handlers
   ipcMain.handle("get-config", () => {

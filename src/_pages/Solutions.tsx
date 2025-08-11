@@ -11,6 +11,8 @@ import SolutionCommands from "../components/Solutions/SolutionCommands"
 import Debug from "./Debug"
 import { useToast } from "../contexts/toast"
 import { COMMAND_KEY } from "../utils/platform"
+import { ChatToggle } from "../components/Chat/ChatToggle"
+import { useConversation } from "../contexts/ConversationContext"
 
 export const ContentSection = ({
   title,
@@ -179,6 +181,7 @@ const Solutions: React.FC<SolutionsProps> = ({
 }) => {
   const queryClient = useQueryClient()
   const contentRef = useRef<HTMLDivElement>(null)
+  const { refreshSessions } = useConversation()
 
   const [debugProcessing, setDebugProcessing] = useState(false)
   const [problemStatementData, setProblemStatementData] =
@@ -341,6 +344,12 @@ const Solutions: React.FC<SolutionsProps> = ({
         setThoughtsData(solutionData.thoughts || null)
         setTimeComplexityData(solutionData.time_complexity || null)
         setSpaceComplexityData(solutionData.space_complexity || null)
+        
+        // Refresh conversations to load the new session created by ProcessingHelper
+        if (data.conversationSessionId) {
+          console.log('New conversation session created:', data.conversationSessionId)
+          refreshSessions()
+        }
 
         // Fetch latest screenshots when solution is successful
         const fetchScreenshots = async () => {
@@ -373,6 +382,12 @@ const Solutions: React.FC<SolutionsProps> = ({
       window.electronAPI.onDebugSuccess((data) => {
         queryClient.setQueryData(["new_solution"], data)
         setDebugProcessing(false)
+        
+        // Refresh conversations to load the new debug session
+        if (data.conversationSessionId) {
+          console.log('New debug conversation session created:', data.conversationSessionId)
+          refreshSessions()
+        }
       }),
       //when there was an error in the initial debugging, we'll show a toast and stop the little generating pulsing thing.
       window.electronAPI.onDebugError(() => {
@@ -565,6 +580,9 @@ const Solutions: React.FC<SolutionsProps> = ({
         </div>
       </div>
       )}
+      
+      {/* Floating Chat Toggle */}
+      <ChatToggle />
     </>
   )
 }

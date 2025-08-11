@@ -73,6 +73,16 @@ export interface ElectronAPI {
   // Delete last screenshot
   deleteLastScreenshot: () => Promise<{ success: boolean; error?: string }>
   onDeleteLastScreenshot: (callback: () => void) => () => void
+  
+  // Conversation API methods
+  conversationCreate: (context: any, problemId?: string) => Promise<{ success: boolean; session?: any; error?: string }>
+  conversationSendMessage: (sessionId: string, message: string) => Promise<{ success: boolean; message?: any; sessionUpdated?: any; error?: string }>
+  conversationGet: (sessionId: string) => Promise<{ success: boolean; session?: any; error?: string }>
+  conversationList: () => Promise<{ success: boolean; sessions?: any[]; activeSessionId?: string; error?: string }>
+  conversationDelete: (sessionId: string) => Promise<{ success: boolean; error?: string }>
+  conversationSetActive: (sessionId: string | null) => Promise<{ success: boolean; error?: string }>
+  conversationGetActive: () => Promise<{ success: boolean; session?: any; sessionId?: string; error?: string }>
+  conversationCleanup: (maxSessions?: number) => Promise<{ success: boolean; error?: string }>
 }
 
 declare global {

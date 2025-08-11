@@ -242,7 +242,25 @@ const electronAPI = {
     ipcRenderer.invoke("set-window-position", x, y),
   getWindowBounds: () => ipcRenderer.invoke("get-window-bounds"),
   setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => 
-    ipcRenderer.invoke("set-window-bounds", bounds)
+    ipcRenderer.invoke("set-window-bounds", bounds),
+  
+  // Conversation API methods
+  conversationCreate: (context: any, problemId?: string) => 
+    ipcRenderer.invoke("conversation-create", context, problemId),
+  conversationSendMessage: (sessionId: string, message: string) => 
+    ipcRenderer.invoke("conversation-send-message", sessionId, message),
+  conversationGet: (sessionId: string) => 
+    ipcRenderer.invoke("conversation-get", sessionId),
+  conversationList: () => 
+    ipcRenderer.invoke("conversation-list"),
+  conversationDelete: (sessionId: string) => 
+    ipcRenderer.invoke("conversation-delete", sessionId),
+  conversationSetActive: (sessionId: string | null) => 
+    ipcRenderer.invoke("conversation-set-active", sessionId),
+  conversationGetActive: () => 
+    ipcRenderer.invoke("conversation-get-active"),
+  conversationCleanup: (maxSessions?: number) => 
+    ipcRenderer.invoke("conversation-cleanup", maxSessions)
 }
 
 // Before exposing the API
