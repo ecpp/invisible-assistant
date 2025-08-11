@@ -38,6 +38,12 @@ export const WindowDragger: React.FC<WindowDraggerProps> = ({ children }) => {
   const handleMouseDown = async (e: React.MouseEvent) => {
     if (!isCtrlPressed) return
     
+    // Don't drag if clicking on a dialog or modal
+    const target = e.target as HTMLElement
+    if (target.closest('[role="dialog"]') || target.closest('.fixed.z-50')) {
+      return
+    }
+    
     // Prevent default to avoid text selection while dragging
     e.preventDefault()
     setIsDragging(true)

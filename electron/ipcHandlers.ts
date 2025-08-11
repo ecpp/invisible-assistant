@@ -373,4 +373,33 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       return { success: false, error: "Failed to set window position" }
     }
   })
+
+  // Window bounds handlers for resizing
+  ipcMain.handle("get-window-bounds", () => {
+    const mainWindow = deps.getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return null
+    }
+    return mainWindow.getBounds()
+  })
+
+  ipcMain.handle("set-window-bounds", (_event, bounds: { x: number; y: number; width: number; height: number }) => {
+    const mainWindow = deps.getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { success: false, error: "Main window not available" }
+    }
+    
+    try {
+      mainWindow.setBounds({
+        x: Math.round(bounds.x),
+        y: Math.round(bounds.y),
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height)
+      })
+      return { success: true }
+    } catch (error) {
+      console.error("Error setting window bounds:", error)
+      return { success: false, error: "Failed to set window bounds" }
+    }
+  })
 }

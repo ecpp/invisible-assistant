@@ -524,7 +524,7 @@ const Solutions: React.FC<SolutionsProps> = ({
                 {solutionData && (
                   <>
                     <ContentSection
-                      title={`My Thoughts (${COMMAND_KEY} + Arrow keys to scroll)`}
+                      title="My Thoughts"
                       content={
                         thoughtsData && (
                           <div className="space-y-3">

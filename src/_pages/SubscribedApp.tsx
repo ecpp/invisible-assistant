@@ -135,7 +135,7 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
   }, [view])
 
   return (
-    <div ref={containerRef} className="min-h-0">
+    <div ref={containerRef} className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
       {view === "queue" ? (
         <Queue
           setView={setView}

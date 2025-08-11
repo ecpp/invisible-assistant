@@ -248,6 +248,21 @@ const QueueCommands: React.FC<QueueCommandsProps> = ({
                         </p>
                       </div>
 
+                      {/* Resize Window Command */}
+                      <div className="rounded px-2 py-1.5 bg-green-500/10 border border-green-500/20">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate text-green-400">Resize Window</span>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <span className="bg-green-500/20 px-1.5 py-0.5 rounded text-[10px] leading-none text-green-300">
+                              {COMMAND_KEY} + Scroll
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] leading-relaxed text-green-300/70 mt-1">
+                          Hold {COMMAND_KEY} and scroll to resize window height.
+                        </p>
+                      </div>
+
                       {/* Toggle Command */}
                       <div
                         className="cursor-pointer rounded px-2 py-1.5 hover:bg-white/10 transition-colors"

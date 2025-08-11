@@ -66,6 +66,10 @@ export interface ElectronAPI {
   getWindowPosition: () => Promise<{ x: number; y: number }>
   setWindowPosition: (x: number, y: number) => Promise<{ success: boolean; error?: string }>
   
+  // Window bounds methods for resizing
+  getWindowBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>
+  setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => Promise<{ success: boolean; error?: string }>
+  
   // Delete last screenshot
   deleteLastScreenshot: () => Promise<{ success: boolean; error?: string }>
   onDeleteLastScreenshot: (callback: () => void) => () => void

@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global styles for proper height management */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 /* Cursor feedback for window dragging */
 .cursor-move {
   cursor: move !important;
@@ -9,6 +15,34 @@
 
 .cursor-move * {
   cursor: move !important;
+}
+
+/* Cursor feedback for window resizing */
+.cursor-ns-resize {
+  cursor: ns-resize !important;
+}
+
+.cursor-ns-resize * {
+  cursor: ns-resize !important;
+}
+
+/* Custom scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Custom animations for UI elements */

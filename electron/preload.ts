@@ -239,7 +239,10 @@ const electronAPI = {
   deleteLastScreenshot: () => ipcRenderer.invoke("delete-last-screenshot"),
   getWindowPosition: () => ipcRenderer.invoke("get-window-position"),
   setWindowPosition: (x: number, y: number) => 
-    ipcRenderer.invoke("set-window-position", x, y)
+    ipcRenderer.invoke("set-window-position", x, y),
+  getWindowBounds: () => ipcRenderer.invoke("get-window-bounds"),
+  setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => 
+    ipcRenderer.invoke("set-window-bounds", bounds)
 }
 
 // Before exposing the API

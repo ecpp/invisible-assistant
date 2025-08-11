@@ -67,6 +67,7 @@ The application uses unidentifiable global keyboard shortcuts that won't be dete
 - Toggle Window Visibility: [Control or Cmd + B]
 - Move Window with Keyboard: [Control or Cmd + Arrow keys]
 - **Move Window with Mouse: Hold [Control or Cmd] and drag anywhere on the window**
+- **Resize Window Height: Hold [Control or Cmd] and scroll mouse wheel**
 - Take Screenshot: [Control or Cmd + H]
 - Delete Last Screenshot: [Control or Cmd + L]
 - Process Screenshots: [Control or Cmd + Enter]
@@ -77,6 +78,8 @@ The application uses unidentifiable global keyboard shortcuts that won't be dete
 - Zoom Out: [Control or Cmd + -]
 - Reset Zoom: [Control or Cmd + 0]
 - Zoom In: [Control or Cmd + =]
+
+**Note:** The window content is scrollable when it exceeds the window height. Use your mouse wheel or trackpad to scroll through long solutions.
 
 ## Invisibility Compatibility
 

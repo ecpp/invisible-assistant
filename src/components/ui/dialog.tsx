@@ -35,7 +35,13 @@ const DialogContent = React.forwardRef<
         "focus:outline-none focus-visible:ring-0",
         className
       )}
-      style={{ maxHeight: '90vh', overflow: 'auto' }}
+      style={{ 
+        maxHeight: '90vh', 
+        overflow: 'auto',
+        zIndex: 9999
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
       {...props}
     >
       {children}
