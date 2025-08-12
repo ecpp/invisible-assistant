@@ -12,6 +12,7 @@ import Debug from "./Debug"
 import { useToast } from "../contexts/toast"
 import { COMMAND_KEY } from "../utils/platform"
 import { ChatToggle } from "../components/Chat/ChatToggle"
+import { CollapsibleChat } from "../components/Chat/CollapsibleChat"
 import { useConversation } from "../contexts/ConversationContext"
 
 export const ContentSection = ({
@@ -495,6 +496,23 @@ const Solutions: React.FC<SolutionsProps> = ({
     }
   }
 
+  const { activeSession } = useConversation();
+  const [isChatCollapsed, setIsChatCollapsed] = useState(() => {
+    const saved = localStorage.getItem('chatPanelCollapsed');
+    return saved === 'true';
+  });
+
+  // Listen for chat collapse state changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('chatPanelCollapsed');
+      setIsChatCollapsed(saved === 'true');
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   return (
     <>
       {!isResetting && queryClient.getQueryData(["new_solution"]) ? (
@@ -507,11 +525,12 @@ const Solutions: React.FC<SolutionsProps> = ({
       ) : (
         <div 
           ref={contentRef} 
-          className="relative overflow-y-auto scroll-smooth solution-scrollable"
+          className="relative overflow-y-auto scroll-smooth solution-scrollable transition-all duration-300"
           style={{
             maxHeight: `${maxContainerHeight}px`,
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent'
+            scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
+            marginRight: activeSession ? (isChatCollapsed ? '48px' : '384px') : '0'
           }}
         >
           <div className="space-y-3 px-4 py-3">
@@ -606,8 +625,11 @@ const Solutions: React.FC<SolutionsProps> = ({
       </div>
       )}
       
-      {/* Floating Chat Toggle */}
-      <ChatToggle />
+      {/* Collapsible Chat Panel */}
+      <CollapsibleChat />
+      
+      {/* Floating Chat Toggle - Hide when CollapsibleChat is visible */}
+      {/* <ChatToggle /> */}
     </>
   )
 }

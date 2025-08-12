@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import QueueCommands from "../components/Queue/QueueCommands"
-import { Send, MessageCircle, Loader2 } from "lucide-react"
+import { Send, MessageCircle, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "../components/ui/button"
 
 import { useToast } from "../contexts/toast"
@@ -37,6 +37,11 @@ const Queue: React.FC<QueueProps> = ({
   const [tooltipHeight, setTooltipHeight] = useState(0)
   const [textInput, setTextInput] = useState("")
   const [isProcessingText, setIsProcessingText] = useState(false)
+  const [isQuestionPanelCollapsed, setIsQuestionPanelCollapsed] = useState(() => {
+    // Load initial state from localStorage, default to collapsed
+    const saved = localStorage.getItem('questionPanelCollapsed');
+    return saved !== null ? saved === 'true' : true; // Default collapsed
+  })
   const contentRef = useRef<HTMLDivElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -141,6 +146,15 @@ const Queue: React.FC<QueueProps> = ({
     window.electronAPI.openSettingsPortal();
   };
 
+  // Save question panel state to localStorage
+  useEffect(() => {
+    localStorage.setItem('questionPanelCollapsed', isQuestionPanelCollapsed.toString());
+  }, [isQuestionPanelCollapsed]);
+
+  const toggleQuestionPanel = () => {
+    setIsQuestionPanelCollapsed(prev => !prev);
+  };
+
   const handleTextSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     
@@ -176,54 +190,83 @@ const Queue: React.FC<QueueProps> = ({
       <div className="px-4 py-3">
         <div className="space-y-3">
           {/* Text Input Section */}
-          <div className="bg-black/60 rounded-lg p-4 border border-white/10">
-            <div className="flex items-center gap-2 mb-3">
-              <MessageCircle className="h-5 w-5 text-white" />
-              <h3 className="text-white font-medium text-sm">Direct Question</h3>
-              <span className="text-white/60 text-xs ml-auto">
-                Ask a coding question without screenshots
-              </span>
-            </div>
-            
-            <form onSubmit={handleTextSubmit} className="space-y-3">
-              <textarea
-                ref={textAreaRef}
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Type or paste your coding question here..."
-                className="w-full min-h-[100px] p-3 bg-white/10 border border-white/20 rounded-md text-white placeholder:text-white/50 resize-none focus:outline-none focus:border-white/40 focus:bg-white/15 transition-colors"
-                disabled={isProcessingText}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.ctrlKey) {
-                    handleTextSubmit();
-                  }
-                }}
-              />
-              
-              <div className="flex items-center justify-between">
-                <span className="text-white/40 text-xs">
-                  Press Ctrl+Enter to submit
-                </span>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!textInput.trim() || isProcessingText}
-                  className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-4"
-                >
-                  {isProcessingText ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Process Question
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
+          <div className={`transition-all duration-200 ${
+            isQuestionPanelCollapsed 
+              ? 'w-fit' 
+              : 'bg-black/60 rounded-lg border border-white/10'
+          }`}>
+            {/* Collapsed state - just icon */}
+            {isQuestionPanelCollapsed ? (
+              <Button
+                onClick={toggleQuestionPanel}
+                variant="ghost"
+                className="p-3 text-white/60 hover:text-white hover:bg-black/60 rounded-lg border border-white/10 transition-colors"
+                title="Ask a direct coding question"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </Button>
+            ) : (
+              /* Expanded state - full panel */
+              <>
+                {/* Header with collapse toggle */}
+                <div className="flex items-center gap-2 p-4 pb-3">
+                  <MessageCircle className="h-5 w-5 text-white" />
+                  <h3 className="text-white font-medium text-sm">Direct Question</h3>
+                  <Button
+                    onClick={toggleQuestionPanel}
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto p-1 text-white/60 hover:text-white hover:bg-white/10"
+                    title="Collapse question panel"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Form content */}
+                <div className="px-4 pb-4">
+                  <form onSubmit={handleTextSubmit} className="space-y-3">
+                  <textarea
+                    ref={textAreaRef}
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="Type or paste your coding question here..."
+                    className="w-full min-h-[100px] p-3 bg-white/10 border border-white/20 rounded-md text-white placeholder:text-white/50 resize-none focus:outline-none focus:border-white/40 focus:bg-white/15 transition-colors"
+                    disabled={isProcessingText}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        handleTextSubmit();
+                      }
+                    }}
+                  />
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/40 text-xs">
+                      Press Ctrl+Enter to submit
+                    </span>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!textInput.trim() || isProcessingText}
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-4"
+                    >
+                      {isProcessingText ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Process Question
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  </form>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Divider */}
