@@ -125,7 +125,6 @@ export class ConversationManager extends EventEmitter {
     try {
       if (fs.existsSync(this.sessionsPath)) {
         const files = fs.readdirSync(this.sessionsPath);
-        let mostRecentSession: ConversationSession | null = null;
         
         for (const file of files) {
           if (file.endsWith('.json')) {
@@ -136,12 +135,9 @@ export class ConversationManager extends EventEmitter {
               
               // Validate session structure
               if (session.id && session.messages && Array.isArray(session.messages)) {
+                // Mark all sessions as inactive on load
+                session.isActive = false;
                 this.sessions.set(session.id, session);
-                
-                // Track the most recent session to set as active
-                if (!mostRecentSession || session.updatedAt > mostRecentSession.updatedAt) {
-                  mostRecentSession = session;
-                }
               }
             } catch (err) {
               console.error(`Error loading conversation session ${file}:`, err);
@@ -149,13 +145,9 @@ export class ConversationManager extends EventEmitter {
           }
         }
         
-        // Set the most recent session as active if we have any sessions
-        if (mostRecentSession) {
-          this.activeSessionId = mostRecentSession.id;
-          console.log(`Set most recent session as active: ${mostRecentSession.id}`);
-        }
-        
-        console.log(`Loaded ${this.sessions.size} conversation sessions`);
+        // Don't set any session as active on app start - start fresh
+        this.activeSessionId = null;
+        console.log(`Loaded ${this.sessions.size} conversation sessions (no active session on startup)`);
       }
     } catch (err) {
       console.error("Error loading conversation sessions:", err);
@@ -218,8 +210,11 @@ export class ConversationManager extends EventEmitter {
     // Store session
     this.sessions.set(sessionId, session);
     this.saveSession(session);
+    
+    // Set as active session
+    this.activeSessionId = sessionId;
 
-    console.log(`Created new conversation session: ${sessionId}`);
+    console.log(`Created new conversation session: ${sessionId} (set as active)`);
     return session;
   }
 
@@ -485,6 +480,85 @@ SESSION CONTEXT:
       }
       
       console.log(`Cleaned up ${sessionsToDelete.length} old conversation sessions`);
+    }
+  }
+
+  /**
+   * Clear the current active conversation session
+   */
+  public clearActiveSession(): boolean {
+    if (!this.activeSessionId) {
+      return false;
+    }
+
+    const sessionId = this.activeSessionId;
+    
+    // Clear active session
+    this.activeSessionId = null;
+    
+    // Mark session as inactive
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.isActive = false;
+      this.saveSession(session);
+    }
+    
+    console.log(`Cleared active conversation session: ${sessionId}`);
+    return true;
+  }
+
+  /**
+   * Clear messages in the active session but keep the session active
+   */
+  public clearActiveSessionMessages(): boolean {
+    if (!this.activeSessionId) {
+      return false;
+    }
+
+    const session = this.sessions.get(this.activeSessionId);
+    if (!session) {
+      return false;
+    }
+
+    // Keep only the system message, clear all other messages
+    const systemMessage = session.messages.find(msg => msg.role === 'system');
+    if (systemMessage) {
+      session.messages = [systemMessage];
+    } else {
+      // If no system message exists, clear all messages
+      session.messages = [];
+    }
+    
+    session.updatedAt = Date.now();
+    this.saveSession(session);
+    
+    console.log(`Cleared messages in active conversation session: ${this.activeSessionId}`);
+    return true;
+  }
+
+  /**
+   * Delete all conversation sessions
+   */
+  public deleteAllSessions(): boolean {
+    try {
+      // Delete all files
+      const files = fs.readdirSync(this.sessionsPath);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const filePath = path.join(this.sessionsPath, file);
+          fs.unlinkSync(filePath);
+        }
+      }
+      
+      // Clear memory
+      this.sessions.clear();
+      this.activeSessionId = null;
+      
+      console.log('Deleted all conversation sessions');
+      return true;
+    } catch (err) {
+      console.error('Error deleting all conversation sessions:', err);
+      return false;
     }
   }
 }

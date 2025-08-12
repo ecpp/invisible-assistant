@@ -58,7 +58,7 @@ export class ShortcutsHelper {
 
     globalShortcut.register("CommandOrControl+R", () => {
       console.log(
-        "Command + R pressed. Canceling requests and resetting queues..."
+        "Command + R pressed. Canceling requests, resetting queues, and clearing conversation..."
       )
 
       // Cancel ongoing API requests
@@ -67,7 +67,11 @@ export class ShortcutsHelper {
       // Clear both screenshot queues
       this.deps.clearQueues()
 
-      console.log("Cleared queues.")
+      // Clear active conversation
+      const { conversationManager } = require("./ConversationManager")
+      conversationManager.clearActiveSession()
+
+      console.log("Cleared queues and conversation.")
 
       // Update the view state to 'queue'
       this.deps.setView("queue")
@@ -77,6 +81,7 @@ export class ShortcutsHelper {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("reset-view")
         mainWindow.webContents.send("reset")
+        mainWindow.webContents.send("conversation-cleared")
       }
     })
 

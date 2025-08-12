@@ -85,6 +85,38 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   });
 
+  ipcMain.handle("conversation-clear-active", () => {
+    try {
+      const result = conversationManager.clearActiveSession();
+      return { success: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-clear-messages", () => {
+    try {
+      const result = conversationManager.clearActiveSessionMessages();
+      if (result) {
+        // Return the updated session
+        const session = conversationManager.getActiveSession();
+        return { success: true, session };
+      }
+      return { success: false };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("conversation-delete-all", () => {
+    try {
+      const result = conversationManager.deleteAllSessions();
+      return { success: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // Configuration handlers
   ipcMain.handle("get-config", () => {
     return configHelper.loadConfig();
@@ -176,6 +208,9 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       }
       return;
     }
+    
+    // Clear any existing conversation before processing new question
+    conversationManager.clearActiveSession();
     
     await deps.processingHelper?.processScreenshots()
   })
@@ -335,6 +370,9 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         }
         return { success: false, error: "API key required" };
       }
+      
+      // Clear any existing conversation before processing new question
+      conversationManager.clearActiveSession();
       
       await deps.processingHelper?.processScreenshots()
       return { success: true }

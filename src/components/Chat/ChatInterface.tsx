@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useConversation } from '../../contexts/ConversationContext';
-import { Send, MessageCircle, Loader2 } from 'lucide-react';
+import { Send, MessageCircle, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ConversationMessage } from '../../types/conversation';
@@ -16,6 +16,7 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
     error,
     sendMessage,
     clearError,
+    clearConversationMessages,
   } = useConversation();
 
   const [messageInput, setMessageInput] = useState('');
@@ -70,6 +71,10 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
     });
   };
 
+  const handleClearConversation = async () => {
+    await clearConversationMessages();
+  };
+
   if (!activeSession) {
     return (
       <div className={`flex items-center justify-center h-full ${className}`}>
@@ -91,11 +96,22 @@ export function ChatInterface({ className = '' }: ChatInterfaceProps) {
     <div className={`flex flex-col h-full ${className}`}>
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-white" />
-          <h3 className="text-white font-medium">
-            {activeSession.context.sessionType === 'debugging' ? 'Debug Chat' : 'Solution Chat'}
-          </h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-white" />
+            <h3 className="text-white font-medium">
+              {activeSession.context.sessionType === 'debugging' ? 'Debug Chat' : 'Solution Chat'}
+            </h3>
+          </div>
+          <Button
+            onClick={handleClearConversation}
+            size="sm"
+            variant="ghost"
+            className="text-white/60 hover:text-white hover:bg-white/10"
+            title="Clear conversation"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
         <p className="text-white/60 text-sm mt-1 truncate">
           {activeSession.context.problemStatement || 'Coding assistance'}

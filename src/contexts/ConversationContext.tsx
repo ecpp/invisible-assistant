@@ -21,6 +21,9 @@ interface ConversationContextType {
   deleteSession: (sessionId: string) => Promise<boolean>;
   refreshSessions: () => Promise<void>;
   clearError: () => void;
+  clearActiveConversation: () => Promise<boolean>;
+  clearConversationMessages: () => Promise<boolean>;
+  clearAllConversations: () => Promise<boolean>;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
@@ -36,6 +39,28 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     refreshSessions();
     loadActiveSession();
+  }, []);
+
+  // Listen for conversation cleared event from shortcuts
+  useEffect(() => {
+    const handleConversationCleared = () => {
+      setActiveSession(null);
+      setActiveSessionId(null);
+    };
+
+    window.addEventListener('conversation-cleared', handleConversationCleared);
+    
+    // Also listen for IPC events
+    if (window.electronAPI?.on) {
+      window.electronAPI.on('conversation-cleared', handleConversationCleared);
+    }
+
+    return () => {
+      window.removeEventListener('conversation-cleared', handleConversationCleared);
+      if (window.electronAPI?.removeListener) {
+        window.electronAPI.removeListener('conversation-cleared', handleConversationCleared);
+      }
+    };
   }, []);
 
   const clearError = useCallback(() => {
@@ -75,6 +100,26 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
       setError(err.message || 'Failed to load conversations');
     }
   }, []);
+
+  // Listen for solution success to load the new conversation session
+  useEffect(() => {
+    const handleSolutionSuccess = async (data: any) => {
+      if (data?.conversationSessionId) {
+        // Refresh sessions list
+        await refreshSessions();
+        // Load the new active session
+        await loadActiveSession();
+      }
+    };
+
+    const unsubscribe = window.electronAPI?.onSolutionSuccess?.(handleSolutionSuccess);
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [refreshSessions, loadActiveSession]);
 
   const createSession = useCallback(async (context: any, problemId?: string): Promise<ConversationSession | null> => {
     setIsLoading(true);
@@ -219,6 +264,69 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
     }
   }, [activeSessionId]);
 
+  const clearActiveConversation = useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await window.electronAPI.conversationClearActive();
+      
+      if (result.success) {
+        setActiveSession(null);
+        setActiveSessionId(null);
+        return true;
+      } else {
+        setError(result.error || 'Failed to clear active conversation');
+        return false;
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to clear active conversation');
+      return false;
+    }
+  }, []);
+
+  const clearConversationMessages = useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await window.electronAPI.conversationClearMessages();
+      
+      if (result.success && result.session) {
+        // Update the active session with cleared messages
+        setActiveSession(result.session);
+        
+        // Update in sessions list too
+        setSessions(prev => 
+          prev.map(session => 
+            session.id === result.session.id ? result.session : session
+          )
+        );
+        
+        return true;
+      } else {
+        setError(result.error || 'Failed to clear conversation messages');
+        return false;
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to clear conversation messages');
+      return false;
+    }
+  }, []);
+
+  const clearAllConversations = useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await window.electronAPI.conversationDeleteAll();
+      
+      if (result.success) {
+        setSessions([]);
+        setActiveSession(null);
+        setActiveSessionId(null);
+        return true;
+      } else {
+        setError(result.error || 'Failed to clear all conversations');
+        return false;
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to clear all conversations');
+      return false;
+    }
+  }, []);
+
   const value: ConversationContextType = {
     activeSession,
     activeSessionId,
@@ -232,6 +340,9 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
     deleteSession,
     refreshSessions,
     clearError,
+    clearActiveConversation,
+    clearConversationMessages,
+    clearAllConversations,
   };
 
   return (
