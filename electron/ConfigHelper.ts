@@ -11,6 +11,9 @@ interface Config {
   opacity: number;
   screenshotMonitorId?: string;  // Monitor ID for taking screenshots
   displayMonitorId?: string;     // Monitor ID for displaying main window
+  extractionModel?: string;      // Model for extracting problems from screenshots
+  solutionModel?: string;         // Model for generating solutions
+  debuggingModel?: string;        // Model for debugging code
 }
 
 export class ConfigHelper extends EventEmitter {

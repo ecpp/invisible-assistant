@@ -253,7 +253,11 @@ const electronAPI = {
   conversationGetActive: () => 
     ipcRenderer.invoke("conversation-get-active"),
   conversationCleanup: (maxSessions?: number) => 
-    ipcRenderer.invoke("conversation-cleanup", maxSessions)
+    ipcRenderer.invoke("conversation-cleanup", maxSessions),
+  
+  // Text-based processing
+  processText: (data: { text: string; language: string }) =>
+    ipcRenderer.invoke("process-text", data)
 }
 
 // Before exposing the API

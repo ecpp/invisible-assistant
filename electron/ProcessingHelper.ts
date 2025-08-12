@@ -30,6 +30,182 @@ export class ProcessingHelper {
   }
   
   /**
+   * Process text input directly without screenshots
+   */
+  async processTextInput(
+    problemText: string,
+    language: string,
+    mainWindow: BrowserWindow
+  ): Promise<void> {
+    try {
+      // Send initial processing event
+      mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.INITIAL_START)
+      
+      // Initialize abort controller
+      this.currentProcessingAbortController = new AbortController()
+      const { signal } = this.currentProcessingAbortController
+      
+      // Extract problem statement (it's already provided as text)
+      const problemData = {
+        problem_statement: problemText,
+        extracted_from: "text_input"
+      }
+      
+      // Send problem extracted event
+      mainWindow.webContents.send(
+        this.deps.PROCESSING_EVENTS.PROBLEM_EXTRACTED,
+        problemData
+      )
+      
+      // Process the solution
+      const result = await this.processTextHelper(problemText, language, signal)
+      
+      if (!result.success) {
+        console.log("Processing failed:", result.error)
+        if (result.error?.includes("API Key") || result.error?.includes("Gemini")) {
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.API_KEY_INVALID
+          )
+        } else {
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+            result.error
+          )
+        }
+        // Reset view back to queue on error
+        this.deps.setView("queue")
+        return
+      }
+      
+      // Send success event and switch to solutions view
+      mainWindow.webContents.send(
+        this.deps.PROCESSING_EVENTS.SOLUTION_SUCCESS,
+        result.data
+      )
+      this.deps.setView("solutions")
+      
+    } catch (error: any) {
+      console.error("Processing error:", error)
+      mainWindow.webContents.send(
+        this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+        error.message || "Failed to process text input"
+      )
+      this.deps.setView("queue")
+    } finally {
+      this.currentProcessingAbortController = null
+    }
+  }
+
+  /**
+   * Helper method to process text and generate solution
+   */
+  private async processTextHelper(
+    problemText: string,
+    language: string,
+    signal: AbortSignal
+  ) {
+    try {
+      const config = configHelper.loadConfig();
+      
+      // Verify Gemini client
+      if (!this.geminiClient) {
+        this.initializeAIClient();
+        
+        if (!this.geminiClient) {
+          return {
+            success: false,
+            error: "Gemini API key not configured or invalid. Please check your settings."
+          };
+        }
+      }
+      
+      // Get solution model
+      const solutionModel = config.solutionModel || "gemini-1.5-flash";
+      
+      // Generate solution
+      const solutionPrompt = `You are a coding interview assistant. Provide a complete solution for the following problem.
+
+Problem:
+${problemText}
+
+Requirements:
+1. Provide solution in ${language}
+2. Include your thought process
+3. Provide time and space complexity analysis
+
+Return your response in the following JSON format:
+{
+  "code": "// Your complete solution code here",
+  "thoughts": ["Thought 1", "Thought 2", "..."],
+  "time_complexity": "O(n)",
+  "space_complexity": "O(1)"
+}
+
+IMPORTANT: Return ONLY valid JSON without any markdown formatting or code blocks.`;
+
+      const response = await this.geminiClient.models.generateContent({
+        model: solutionModel,
+        contents: createUserContent([solutionPrompt]),
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 4000
+        }
+      });
+      
+      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      
+      // Parse JSON response
+      let solutionData;
+      try {
+        // Clean up the response - remove markdown code blocks if present
+        const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        solutionData = JSON.parse(cleanedText);
+      } catch (parseError) {
+        console.error("Failed to parse solution response:", text);
+        return {
+          success: false,
+          error: "Failed to parse AI response. Please try again."
+        };
+      }
+      
+      // Create conversation session for context awareness
+      const sessionId = conversationManager.createSession({
+        problemStatement: problemText,
+        sessionType: 'problem-solving',
+        language: language,
+        originalCode: solutionData.code,
+        solutionSummary: solutionData.thoughts?.join(' ') || ''
+      });
+      
+      // Add the solution data with session ID
+      const responseData = {
+        ...solutionData,
+        conversationSessionId: sessionId
+      };
+      
+      return {
+        success: true,
+        data: responseData
+      };
+      
+    } catch (error: any) {
+      console.error("Error in processTextHelper:", error);
+      
+      if (signal.aborted) {
+        return {
+          success: false,
+          error: "Processing was canceled by the user."
+        };
+      }
+      
+      return {
+        success: false,
+        error: error.message || "Failed to generate solution"
+      };
+    }
+  }
+
+  /**
    * Get MIME type from file path
    */
   private getMimeTypeFromPath(filePath: string): string {

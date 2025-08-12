@@ -83,6 +83,9 @@ export interface ElectronAPI {
   conversationSetActive: (sessionId: string | null) => Promise<{ success: boolean; error?: string }>
   conversationGetActive: () => Promise<{ success: boolean; session?: any; sessionId?: string; error?: string }>
   conversationCleanup: (maxSessions?: number) => Promise<{ success: boolean; error?: string }>
+  
+  // Text-based processing
+  processText: (data: { text: string; language: string }) => Promise<{ success: boolean; error?: string }>
 }
 
 declare global {

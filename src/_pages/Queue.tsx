@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import QueueCommands from "../components/Queue/QueueCommands"
+import { Send, MessageCircle, Loader2 } from "lucide-react"
+import { Button } from "../components/ui/button"
 
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
@@ -33,7 +35,10 @@ const Queue: React.FC<QueueProps> = ({
 
   const [isTooltipVisible, setIsTooltipVisible] = useState(false)
   const [tooltipHeight, setTooltipHeight] = useState(0)
+  const [textInput, setTextInput] = useState("")
+  const [isProcessingText, setIsProcessingText] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
 
   const {
     data: screenshots = [],
@@ -135,17 +140,109 @@ const Queue: React.FC<QueueProps> = ({
   const handleOpenSettings = () => {
     window.electronAPI.openSettingsPortal();
   };
+
+  const handleTextSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    
+    if (!textInput.trim() || isProcessingText) {
+      return;
+    }
+
+    const problemText = textInput.trim();
+    setIsProcessingText(true);
+
+    try {
+      // Send text directly for processing
+      await window.electronAPI.processText({
+        text: problemText,
+        language: currentLanguage
+      });
+      
+      // Clear input after successful submission
+      setTextInput("");
+      
+      // Show success message
+      showToast("Processing", "Your question is being processed", "neutral");
+    } catch (error) {
+      console.error("Error processing text:", error);
+      showToast("Error", "Failed to process your question", "error");
+    } finally {
+      setIsProcessingText(false);
+    }
+  };
   
   return (
-    <div ref={contentRef} className={`bg-transparent w-1/2`}>
+    <div ref={contentRef} className={`bg-transparent w-full`}>
       <div className="px-4 py-3">
-        <div className="space-y-3 w-fit">
+        <div className="space-y-3">
+          {/* Text Input Section */}
+          <div className="bg-black/60 rounded-lg p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageCircle className="h-5 w-5 text-white" />
+              <h3 className="text-white font-medium text-sm">Direct Question</h3>
+              <span className="text-white/60 text-xs ml-auto">
+                Ask a coding question without screenshots
+              </span>
+            </div>
+            
+            <form onSubmit={handleTextSubmit} className="space-y-3">
+              <textarea
+                ref={textAreaRef}
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Type or paste your coding question here..."
+                className="w-full min-h-[100px] p-3 bg-white/10 border border-white/20 rounded-md text-white placeholder:text-white/50 resize-none focus:outline-none focus:border-white/40 focus:bg-white/15 transition-colors"
+                disabled={isProcessingText}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    handleTextSubmit();
+                  }
+                }}
+              />
+              
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-xs">
+                  Press Ctrl+Enter to submit
+                </span>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!textInput.trim() || isProcessingText}
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-4"
+                >
+                  {isProcessingText ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Process Question
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {/* Divider */}
+          {screenshots.length > 0 && (
+            <div className="flex items-center gap-3 my-2">
+              <div className="flex-1 h-px bg-white/10"></div>
+              <span className="text-white/40 text-xs">OR</span>
+              <div className="flex-1 h-px bg-white/10"></div>
+            </div>
+          )}
+
+          {/* Screenshot Queue */}
           <ScreenshotQueue
             isLoading={false}
             screenshots={screenshots}
             onDeleteScreenshot={handleDeleteScreenshot}
           />
 
+          {/* Commands */}
           <QueueCommands
             onTooltipVisibilityChange={handleTooltipVisibilityChange}
             screenshotCount={screenshots.length}

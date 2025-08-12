@@ -413,6 +413,26 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
   
   // Delete last screenshot handler
+  // Text-based processing handler
+  ipcMain.handle("process-text", async (_event, data: { text: string; language: string }) => {
+    try {
+      const processingHelper = deps.processingHelper
+      const mainWindow = deps.getMainWindow()
+      
+      if (!mainWindow) {
+        return { success: false, error: "Main window not available" }
+      }
+      
+      // Process text directly without screenshots
+      await processingHelper.processTextInput(data.text, data.language, mainWindow)
+      
+      return { success: true }
+    } catch (error: any) {
+      console.error("Error processing text:", error)
+      return { success: false, error: error.message || "Failed to process text" }
+    }
+  })
+
   ipcMain.handle("delete-last-screenshot", async () => {
     try {
       const queue = deps.getView() === "queue" 
