@@ -34,9 +34,12 @@ export function CollapsibleChat({ className = '' }: CollapsibleChatProps) {
 
   return (
     <div 
-      className={`fixed right-0 top-0 h-full bg-black/95 border-l border-white/20 transition-all duration-300 z-40 ${className} ${
+      className={`fixed right-0 top-0 h-full bg-black/95 border-l border-white/20 z-40 ${className} ${
         isCollapsed ? 'w-12' : 'w-96'
       }`}
+      style={{
+        transition: 'width 150ms ease-out'
+      }}
     >
       {/* Collapse/Expand Button */}
       <Button

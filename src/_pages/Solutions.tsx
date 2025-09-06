@@ -525,12 +525,12 @@ const Solutions: React.FC<SolutionsProps> = ({
       ) : (
         <div 
           ref={contentRef} 
-          className="relative overflow-y-auto scroll-smooth solution-scrollable transition-all duration-300"
+          className="relative overflow-y-auto scroll-smooth solution-scrollable"
           style={{
             maxHeight: `${maxContainerHeight}px`,
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(255, 255, 255, 0.3) transparent',
-            marginRight: activeSession ? (isChatCollapsed ? '48px' : '384px') : '0'
+            paddingRight: activeSession ? (isChatCollapsed ? '48px' : '384px') : '0'
           }}
         >
           <div className="space-y-3 px-4 py-3">

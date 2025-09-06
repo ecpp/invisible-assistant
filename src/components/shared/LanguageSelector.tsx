@@ -11,6 +11,7 @@ const LANGUAGE_OPTIONS = [
   { value: "javascript", label: "JavaScript" },
   { value: "java", label: "Java" },
   { value: "golang", label: "Go" },
+  { value: "c", label: "C" },
   { value: "cpp", label: "C++" },
   { value: "swift", label: "Swift" },
   { value: "kotlin", label: "Kotlin" },
